@@ -105,22 +105,35 @@ class getTweet():
             else:
                 break
 
+        #document.querySelector('article').querySelectorAll('.css-901oao.css-16my406.r-1tl8opc.r-ad9z0x.r-bcqeeo.r-qvutc0')[0].textContent=="固定されたツイート"
         arcs=drv.find_elements_by_tag_name('article')
         try:
-            objTitleTag = arcs[0].find_element_by_css_selector('[class="css-901oao css-16my406 r-1qd0xha r-ad9z0x r-bcqeeo r-qvutc0"]')
+            #objTitleTag = arcs[0].find_element_by_css_selector('[class="css-901oao css-16my406 r-1qd0xha r-ad9z0x r-bcqeeo r-qvutc0"]')
+            #objTitleTag = arcs[0].find_element_by_css_selector('.css-901oao.css-16my406.r-1qd0xha.r-ad9z0x.r-bcqeeo.r-qvutc0')
+            time.sleep(3)
+            #objTitleTag = arcs[0].find_element_by_css_selector('.css-901oao.css-16my406.r-1tl8opc.r-ad9z0x.r-bcqeeo.r-qvutc0')
+            #css-901oao css-16my406 r-1tl8opc r-bcqeeo r-qvutc0
+            objTitleTag = arcs[0].find_element_by_css_selector('.css-901oao.css-16my406.r-1tl8opc.r-bcqeeo.r-qvutc0')
             aryObjTweetTextTag = []
-            print "objTitleTag = ", objTitleTag.text.encode('utf-8')
-            TweetTextTagCssSelector='[class="css-1dbjc4n r-1iusvr4 r-16y2uox r-1777fci r-1mi0q7o"] > div + div > div' # 12062020 this is used.
-            try:
-                # if span tag is null
-                objTitleTag.find_element_by_tag_name('span')
-                aryObjTweetTextTag = arcs[0].find_elements_by_css_selector(TweetTextTagCssSelector)
-            except NoSuchElementException:
-                # if span tag is not null
+            strTitle = objTitleTag.text.encode('utf-8')
+            print "objTitleTag = ",strTitle 
+            #TweetTextTagCssSelector='[class="css-1dbjc4n r-1iusvr4 r-16y2uox r-1777fci r-1mi0q7o"] > div + div > div' # 12062020 this is used.
+            #TweetTextTagCssSelector='.css-1dbjc4n.r-1iusvr4.r-16y2uox.r-1777fci.r-1mi0q7o > div + div > div' # 12062020 this is used.
+            TweetTextTagCssSelector='.css-1dbjc4n.r-1iusvr4.r-16y2uox.r-1777fci.r-kzbkwu > div + div > div' # 02282021 this is used.
+            if strTitle == "固定されたツイート" or strTitle == "Pinned Tweet":
                 aryObjTweetTextTag = arcs[1].find_elements_by_css_selector(TweetTextTagCssSelector)
-                t,v,tb = sys.exc_info()
-                log_txt=''.join(traceback.format_exception(t,v,tb))
-                print log_txt
+            else:
+                aryObjTweetTextTag = arcs[0].find_elements_by_css_selector(TweetTextTagCssSelector)
+            #try:
+            #    # if span tag is null
+            #    objTitleTag.find_element_by_tag_name('span')
+            #    aryObjTweetTextTag = arcs[1].find_elements_by_css_selector(TweetTextTagCssSelector)
+            #except NoSuchElementException:
+            #    # if span tag is not null
+            #    aryObjTweetTextTag = arcs[0].find_elements_by_css_selector(TweetTextTagCssSelector)
+            #    t,v,tb = sys.exc_info()
+            #    log_txt=''.join(traceback.format_exception(t,v,tb))
+            #    print log_txt
             aryObjTweetTextTag = aryObjTweetTextTag[:len(aryObjTweetTextTag)-1] # remove the end of element, because this element is follow,retweet,like...
             for idx in range(len(aryObjTweetTextTag)):
                 if len(aryObjTweetTextTag[idx].find_elements_by_tag_name('video')) < 1: # ignore a video tag
@@ -132,6 +145,7 @@ class getTweet():
             self.getScreenShot('testpy.png')
             pass
         
+        print "strTweetText,",strTweetText
         if strTweetText == '':
             return self.strTweetText
         else:
@@ -254,9 +268,12 @@ class SubWork():
         self.clsGetTweet = getTweet(self.strUrl,2)
         self.strTweetText = ""
 
-        self.strExecFileAbsPath=os.path.abspath(__file__)[:os.path.abspath(__file__).rfind('/')]
-        self.strTweetTxtFile = self.strExecFileAbsPath + '/' + self.strUrl[self.strUrl.rfind('/')+1:] + '.txt'
-        self.strMusicFile = self.strExecFileAbsPath + '/' + 'content/main.wav'
+        #self.strExecFileAbsPath=os.path.abspath(__file__)[:os.path.abspath(__file__).rfind('/')]
+        #self.strTweetTxtFile = self.strExecFileAbsPath + '/' + self.strUrl[self.strUrl.rfind('/')+1:] + '.txt'
+        #self.strMusicFile = self.strExecFileAbsPath + '/' + 'content/main.wav'
+        self.strExecFileAbsPath=os.path.abspath(__file__)[:os.path.abspath(__file__).rfind('\\')]
+        self.strTweetTxtFile = self.strExecFileAbsPath + '\\' + self.strUrl[self.strUrl.rfind('/')+1:] + '.txt'
+        self.strMusicFile = self.strExecFileAbsPath + '\\' + 'content\\main.wav'
         
         if len(glob.glob(self.strTweetTxtFile)) != 1:
             f=open(self.strTweetTxtFile,'w')
