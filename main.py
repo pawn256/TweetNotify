@@ -7,6 +7,7 @@ import traceback
 import datetime
 import glob
 import time
+import json
 import wavplay
 import threading
 from multiprocessing import Process, Queue
@@ -24,12 +25,25 @@ reload(sys)
 sys.setdefaultencoding('utf-8')
 
 class getTweet():
-    def __init__(self,strUrl,bBrowser=0):
+    def __init__(self,strUrl,bBrowser=0,bCsrfToken=False):
         self.strUrl = strUrl
         self.strTweetText = ''
+        self.strCsrfToken = ''
+        self.strGuestToken = ''
         self.bBrowser = bBrowser
+        self.bCsrfToken = bCsrfToken
         self.drv = None
-        if self.bBrowser == 0:
+        if self.bCsrfToken == True:
+            options=Options()
+            options.add_argument('--headless')
+            drv_path=os.environ['CHROME_DRIVER'] # envirionment variable
+            caps = DesiredCapabilities.CHROME
+            caps["goog:loggingPrefs"] = {"performance": "ALL"}
+            self.drv=webdriver.Chrome(drv_path,options=options,desired_capabilities=caps)
+            self.drv.set_window_size(1920,1080)
+            self.drv.implicitly_wait(15)
+            self.drv.get(strUrl)
+        elif self.bBrowser == 0:
             pass
         elif self.bBrowser == 1: # phantomjs
             USER_AGENT="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.106 Safari/537.36"
@@ -55,7 +69,9 @@ class getTweet():
         self.drv.save_screenshot(fname)
 
     def getTweetText(self,):
-        if self.bBrowser != 0:
+        if self.bCsrfToken == True:
+            return self.getTweetTextEx4()
+        elif self.bBrowser != 0:
             return self.getTweetTextEx3()
         else:
             return self.getTweetTextEx2()
@@ -105,35 +121,24 @@ class getTweet():
             else:
                 break
 
-        #document.querySelector('article').querySelectorAll('.css-901oao.css-16my406.r-1tl8opc.r-ad9z0x.r-bcqeeo.r-qvutc0')[0].textContent=="固定されたツイート"
         arcs=drv.find_elements_by_tag_name('article')
         try:
-            #objTitleTag = arcs[0].find_element_by_css_selector('[class="css-901oao css-16my406 r-1qd0xha r-ad9z0x r-bcqeeo r-qvutc0"]')
-            #objTitleTag = arcs[0].find_element_by_css_selector('.css-901oao.css-16my406.r-1qd0xha.r-ad9z0x.r-bcqeeo.r-qvutc0')
             time.sleep(3)
-            #objTitleTag = arcs[0].find_element_by_css_selector('.css-901oao.css-16my406.r-1tl8opc.r-ad9z0x.r-bcqeeo.r-qvutc0')
-            #css-901oao css-16my406 r-1tl8opc r-bcqeeo r-qvutc0
-            objTitleTag = arcs[0].find_element_by_css_selector('.css-901oao.css-16my406.r-1tl8opc.r-bcqeeo.r-qvutc0')
+            objTitleTag = None
+            if os.name == "nt":
+                objTitleTag = arcs[0].find_element_by_css_selector('.css-901oao.css-16my406.r-poiln3.r-bcqeeo.r-qvutc0')
+            elif os.name == "posix":
+                objTitleTag = arcs[0].find_element_by_css_selector('.css-901oao.css-16my406.r-poiln3.r-bcqeeo.r-qvutc0')
+            else:
+                objTitleTag = arcs[0].find_element_by_css_selector('.css-901oao.css-16my406.r-1tl8opc.r-bcqeeo.r-qvutc0')
             aryObjTweetTextTag = []
             strTitle = objTitleTag.text.encode('utf-8')
             print "objTitleTag = ",strTitle 
-            #TweetTextTagCssSelector='[class="css-1dbjc4n r-1iusvr4 r-16y2uox r-1777fci r-1mi0q7o"] > div + div > div' # 12062020 this is used.
-            #TweetTextTagCssSelector='.css-1dbjc4n.r-1iusvr4.r-16y2uox.r-1777fci.r-1mi0q7o > div + div > div' # 12062020 this is used.
             TweetTextTagCssSelector='.css-1dbjc4n.r-1iusvr4.r-16y2uox.r-1777fci.r-kzbkwu > div + div > div' # 02282021 this is used.
             if strTitle == "固定されたツイート" or strTitle == "Pinned Tweet":
                 aryObjTweetTextTag = arcs[1].find_elements_by_css_selector(TweetTextTagCssSelector)
             else:
                 aryObjTweetTextTag = arcs[0].find_elements_by_css_selector(TweetTextTagCssSelector)
-            #try:
-            #    # if span tag is null
-            #    objTitleTag.find_element_by_tag_name('span')
-            #    aryObjTweetTextTag = arcs[1].find_elements_by_css_selector(TweetTextTagCssSelector)
-            #except NoSuchElementException:
-            #    # if span tag is not null
-            #    aryObjTweetTextTag = arcs[0].find_elements_by_css_selector(TweetTextTagCssSelector)
-            #    t,v,tb = sys.exc_info()
-            #    log_txt=''.join(traceback.format_exception(t,v,tb))
-            #    print log_txt
             aryObjTweetTextTag = aryObjTweetTextTag[:len(aryObjTweetTextTag)-1] # remove the end of element, because this element is follow,retweet,like...
             for idx in range(len(aryObjTweetTextTag)):
                 if len(aryObjTweetTextTag[idx].find_elements_by_tag_name('video')) < 1: # ignore a video tag
@@ -151,6 +156,34 @@ class getTweet():
         else:
             self.strTweetText = strTweetText
             return strTweetText
+
+    # add 20220126
+    def getTweetTextEx4(self,):
+        while getToken():
+            print "Getting Token."
+            time.sleep(1)
+
+    # add 20220126
+    def getToken(self,):
+        aryNetLog = self.drv.get_log("performance")
+        for i in range(len(aryNetLog)):
+            if self.strCsrfToken != '' and self.strGuestToken != '':
+                print "x-csrf-token: %s"%(self.strCsrfToken)
+                print "x-guest-token: %s"%(self.strGuestToken)
+                break
+            try:
+                self.strGuestToken = json.loads(aryNetLog[i]['message'])['message']['params']['request']['headers']['x-guest-token']
+            except:
+                pass
+            try:
+                self.strCsrfToken = json.loads(aryNetLog[i]['message'])['message']['params']['request']['headers']['x-csrf-token']
+            except:
+                pass
+        return self.strCsrfToken == '' or self.strGuestToken == ''
+
+    # add 20220126
+    def getUserId(self,):
+        pass
 
 class Test(object):
     def __init__(self):
@@ -268,12 +301,21 @@ class SubWork():
         self.clsGetTweet = getTweet(self.strUrl,2)
         self.strTweetText = ""
 
-        #self.strExecFileAbsPath=os.path.abspath(__file__)[:os.path.abspath(__file__).rfind('/')]
-        #self.strTweetTxtFile = self.strExecFileAbsPath + '/' + self.strUrl[self.strUrl.rfind('/')+1:] + '.txt'
-        #self.strMusicFile = self.strExecFileAbsPath + '/' + 'content/main.wav'
-        self.strExecFileAbsPath=os.path.abspath(__file__)[:os.path.abspath(__file__).rfind('\\')]
-        self.strTweetTxtFile = self.strExecFileAbsPath + '\\' + self.strUrl[self.strUrl.rfind('/')+1:] + '.txt'
-        self.strMusicFile = self.strExecFileAbsPath + '\\' + 'content\\main.wav'
+        self.strExecFileAbsPath = ""
+        self.strTweetTxtFile = ""
+        self.strMusicFile = ""
+        if os.name == "nt":
+            self.strExecFileAbsPath = os.path.abspath(__file__)[:os.path.abspath(__file__).rfind('\\')]
+            self.strTweetTxtFile = self.strExecFileAbsPath + '\\' + self.strUrl[self.strUrl.rfind('/')+1:] + '.txt'
+            self.strMusicFile = self.strExecFileAbsPath + '\\' + 'content\\main.wav'
+        elif os.name == "posix":
+            self.strExecFileAbsPath = os.path.abspath(__file__)[:os.path.abspath(__file__).rfind('/')]
+            self.strTweetTxtFile = self.strExecFileAbsPath + '/' + self.strUrl[self.strUrl.rfind('/')+1:] + '.txt'
+            self.strMusicFile = self.strExecFileAbsPath + '/' + 'content/main.wav'
+        else:
+            self.strExecFileAbsPath = os.path.abspath(__file__)[:os.path.abspath(__file__).rfind('\\')]
+            self.strTweetTxtFile = self.strExecFileAbsPath + '\\' + self.strUrl[self.strUrl.rfind('/')+1:] + '.txt'
+            self.strMusicFile = self.strExecFileAbsPath + '\\' + 'content\\main.wav'
         
         if len(glob.glob(self.strTweetTxtFile)) != 1:
             f=open(self.strTweetTxtFile,'w')
@@ -294,7 +336,7 @@ class SubWork():
     def checkTweetTextLoop(self):
         while True:
             self.strTweetText = self.clsGetTweet.getTweetText()
-            time.sleep(1)
+            time.sleep(5)
 
     def getStrTweetText(self):
         return self.strTweetText
